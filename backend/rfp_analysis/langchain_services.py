@@ -1,8 +1,6 @@
 import json
 import re
-from langchain_google_genai import (
-    ChatGoogleGenerativeAI
-)
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from django.conf import settings
 
@@ -17,7 +15,10 @@ llm = ChatGoogleGenerativeAI(
 compliance_template = PromptTemplate(
     input_variables=["company_data", "rfp_content"],
     template="""
-You are a compliance expert. Check if the company meets the RFP requirements.
+1. Standard Compliance Checks*  
+- Determine if ConsultAdd is legally eligible to bid.  
+- Consider factors like required state registrations, certifications, and past performance.  
+- Clearly identify any disqualifying criteria or deal-breakers.
 
 Company Data:
 {company_data}
@@ -27,13 +28,12 @@ RFP Content:
 
 Respond ONLY with JSON in the following format:
 {{
-  "step1": {{
-    "title": "Compliance Check",
+  "compliance": {{
     "results": [
       {{
-        "type": "success" or "error",
         "title": "<check title>",
-        "message": "<brief explanation>"
+        "description": "<brief explanation>",
+        "status": "pass" or "fail"
       }}
     ]
   }}
@@ -44,19 +44,23 @@ Respond ONLY with JSON in the following format:
 eligibility_template = PromptTemplate(
     input_variables=["rfp_content"],
     template="""
-Extract the mandatory eligibility requirements from the RFP.
+2. *Mandatory Eligibility Criteria*  
+- Extract and summarize all must-have qualifications, certifications, and experience needed to bid.  
+- Highlight any missing elements in ConsultAdd’s profile that may affect eligibility.
 
 RFP Content:
 {rfp_content}
 
 Respond ONLY with JSON in the following format:
 {{
-  "step2": {{
-    "title": "Mandatory Eligibility",
-    "warning": "<optional overall warning if any major requirement is missing>",
-    "checklist": [
-      {{ "status": "pass" or "fail", "text": "<requirement>" }}
-    ]
+  "eligibility": {{
+    "requirements": [
+      {{
+        "description": "<requirement description>",
+        "met": true or false
+      }}
+    ],
+    "missing_requirements": ["<missing1>", "<missing2>"]
   }}
 }}
 """
@@ -65,20 +69,21 @@ Respond ONLY with JSON in the following format:
 risk_template = PromptTemplate(
     input_variables=["rfp_content"],
     template="""
-Identify contractual risks in the RFP.
+4. Contract Risk Analysis*  
+- Identify clauses that may present risk or bias against ConsultAdd, such as unilateral termination rights, unreasonable penalties, or strict SLAs.  
+- Suggest potential modifications or negotiation points to mitigate these risks.
 
 RFP Content:
 {rfp_content}
 
 Respond ONLY with JSON in the following format:
 {{
-  "step3": {{
-    "title": "Risk Analysis",
+  "risk": {{
     "risks": [
       {{
-        "severity": "low" | "medium" | "high",
         "title": "<risk title>",
-        "message": "<explanation>",
+        "description": "<risk explanation>",
+        "severity": "low" | "medium" | "high",
         "suggestion": "<remedy suggestion>"
       }}
     ]
@@ -90,20 +95,23 @@ Respond ONLY with JSON in the following format:
 submission_template = PromptTemplate(
     input_variables=["rfp_content"],
     template="""
-Generate a checklist of submission requirements from the RFP including formatting and attachments.
+3. *Submission Checklist*  
+- Generate a checklist of submission requirements including:  
+    - Document formatting (e.g., font size, line spacing, page limits, TOC, etc.)  
+    - Required attachments (e.g., forms, certificates, pricing sheets)  
+    - Submission method and deadlines
 
 RFP Content:
 {rfp_content}
 
 Respond ONLY with JSON in the following format:
 {{
-  "step4": {{
-    "title": "Submission Checklist",
+  "submission": {{
     "items": [
       {{
-        "status": "pass" or "fail",
-        "title": "<requirement title>",
-        "description": "<requirement description>"
+        "name": "<item name>",
+        "requirements": "<item requirements>",
+        "completed": true or false
       }}
     ]
   }}

@@ -1,15 +1,47 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const [rfpName, setRfpName] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [rfpFile, setRfpFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (file && rfpName) {
-      navigate('/analysis');
+    if (!rfpFile || !rfpName) {
+      setError('Please provide RFP name and file');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('rfp_pdf', rfpFile);
+
+      const response = await axios.post('http://localhost:8000/api/upload-pdfs/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Navigate to analysis page with the response data
+      navigate('/analysis', {
+        state: {
+          rfpId: response.data.rfp_id,
+          companyId: response.data.company_id,
+          rfpName: rfpName
+        }
+      });
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('Failed to upload RFP. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -78,23 +110,40 @@ const Home: React.FC = () => {
                           type="file"
                           accept=".pdf"
                           className="sr-only"
-                          onChange={(e) => setFile(e.target.files?.[0] || null)}
+                          onChange={(e) => setRfpFile(e.target.files?.[0] || null)}
                           required
                         />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-gray-500">PDF up to 10MB</p>
+                    <p className="text-xs text-gray-500">
+                      {rfpFile ? `Selected: ${rfpFile.name}` : 'PDF up to 10MB'}
+                    </p>
                   </div>
                 </div>
               </div>
 
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-700">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 className="w-full bg-primary text-white py-4 px-6 rounded-lg hover:bg-primary-dark transition-colors font-medium text-lg shadow-md hover:shadow-lg"
-                disabled={!file || !rfpName}
+                disabled={!rfpFile || !rfpName || isLoading}
               >
-                Analyze RFP
+                {isLoading ? 'Uploading...' : 'Analyze RFP'}
               </button>
             </form>
           </div>
@@ -135,4 +184,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home; 
+export default Home;

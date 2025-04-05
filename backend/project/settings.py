@@ -29,9 +29,9 @@ ALLOWED_HOSTS = []
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'hackathon',       # e.g., 'rfp_analysis_db'
+        'NAME': 'test',       # e.g., 'rfp_analysis_db'
         'USER': 'postgres',       # e.g., 'postgres'
-        'PASSWORD': 'uday2acc',
+        'PASSWORD': 'priya',
         'HOST': 'localhost',          # or your database host
         'PORT': '5432',               # default PostgreSQL port
     }
@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rfp_analysis',
     'pgvector',
+        'corsheaders',
+
 ]
 GOOGLE_API_KEY = 'AIzaSyAZkDbXdjHAr0rwVkifSDBRoFBeYq0xTKM'
 
@@ -65,9 +67,12 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = "project.urls"
+CORS_ALLOW_ALL_ORIGINS = True
 
 TEMPLATES = [
     {
