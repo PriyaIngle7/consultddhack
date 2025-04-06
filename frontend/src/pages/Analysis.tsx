@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Document, Packer, Paragraph, TextRun } from "docx";
+import { saveAs } from "file-saver";
 
 interface StepProps {
   title: string;
@@ -11,6 +13,7 @@ interface StepProps {
 
 interface AnalysisData {
   compliance: {
+    eligibility: 'eligible' | 'partial' | 'not eligible';
     results: Array<{
       title: string;
       status: 'pass' | 'fail' | 'pending';
@@ -18,6 +21,7 @@ interface AnalysisData {
     }>;
   };
   eligibility: {
+    status: 'eligible' | 'partial' | 'not eligible';
     requirements: Array<{
       description: string;
       met: boolean;
@@ -76,6 +80,255 @@ const Analysis: React.FC = () => {
     { id: 4, title: 'Submission Checklist' },
   ];
 
+  const handleDownloadChecklist = () => {
+    if (!analysisData) return;
+  
+    // Create a more professional document structure
+    const doc = new Document({
+      sections: [
+        {
+          properties: {
+            page: {
+              margin: {
+                top: 1000,    // 1 inch margin
+                right: 1000,
+                bottom: 1000,
+                left: 1000,
+              }
+            }
+          },
+          children: [
+            // Header with logo and title
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "RFP Submission Checklist",
+                  bold: true,
+                  size: 36,
+                  font: "Calibri",
+                  color: "2E5984", // Dark blue
+                }),
+              ],
+              alignment: "center",
+              spacing: { after: 400 },
+              border: {
+                bottom: {
+                  color: "2E5984",
+                  space: 20,
+                  value: "single",
+                  size: 8,
+                },
+              },
+            }),
+  
+            // Document metadata
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Prepared for: ${companyId}`,
+                  size: 22,
+                  color: "555555",
+                }),
+              ],
+              spacing: { after: 200 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `RFP ID: ${rfpId}`,
+                  size: 22,
+                  color: "555555",
+                }),
+              ],
+              spacing: { after: 200 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Date: ${new Date().toLocaleDateString()}`,
+                  size: 22,
+                  color: "555555",
+                }),
+              ],
+              spacing: { after: 600 },
+            }),
+  
+            // Checklist items header
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Submission Requirements",
+                  bold: true,
+                  size: 28,
+                  color: "2E5984",
+                  font: "Calibri",
+                }),
+              ],
+              spacing: { before: 400, after: 400 },
+              border: {
+                bottom: {
+                  color: "2E5984",
+                  space: 10,
+                  value: "single",
+                  size: 6,
+                },
+              },
+            }),
+  
+            // Checklist items
+            ...analysisData.submission.items.map((item, index) => [
+              // Item header with status
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${index + 1}. ${item.name}`,
+                    bold: true,
+                    size: 24,
+                    color: item.completed ? "2E5984" : "C00000", // Blue or red
+                    font: "Calibri",
+                  }),
+                  new TextRun({
+                    text: ` [${item.completed ? "COMPLETED" : "MISSING"}]`,
+                    bold: true,
+                    size: 22,
+                    color: item.completed ? "2E5984" : "C00000",
+                  }),
+                ],
+                spacing: { before: 400, after: 200 },
+              }),
+  
+              // Requirements
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Requirements:",
+                    bold: true,
+                    size: 22,
+                  }),
+                ],
+                indent: { left: 400 },
+                spacing: { before: 100, after: 100 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: item.requirements,
+                    size: 22,
+                  }),
+                ],
+                indent: { left: 800 },
+                spacing: { after: 300 },
+              }),
+  
+              // Status indicator
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: "Status: ",
+                    bold: true,
+                    size: 22,
+                  }),
+                  new TextRun({
+                    text: item.completed ? "✓ Verified" : "✗ Not Completed",
+                    bold: true,
+                    color: item.completed ? "00AA00" : "FF0000",
+                    size: 22,
+                  }),
+                ],
+                indent: { left: 400 },
+                spacing: { after: 400 },
+              }),
+  
+              // Divider
+              new Paragraph({
+                border: {
+                  bottom: {
+                    color: "DDDDDD",
+                    space: 10,
+                    value: "single",
+                    size: 2,
+                  },
+                },
+                spacing: { after: 400 },
+              }),
+            ]).flat(),
+  
+            // Summary section
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Submission Summary",
+                  bold: true,
+                  size: 28,
+                  color: "2E5984",
+                  font: "Calibri",
+                }),
+              ],
+              spacing: { before: 800, after: 400 },
+              border: {
+                bottom: {
+                  color: "2E5984",
+                  space: 10,
+                  value: "single",
+                  size: 6,
+                },
+              },
+            }),
+  
+            // Summary statistics
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Total Requirements: ${analysisData.submission.items.length}`,
+                  size: 22,
+                }),
+              ],
+              spacing: { before: 200, after: 100 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Completed: ${analysisData.submission.items.filter(i => i.completed).length}`,
+                  size: 22,
+                  color: "00AA00",
+                }),
+              ],
+              spacing: { after: 100 },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Missing: ${analysisData.submission.items.filter(i => !i.completed).length}`,
+                  size: 22,
+                  color: "FF0000",
+                }),
+              ],
+              spacing: { after: 400 },
+            }),
+  
+            // Footer
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "Generated by RFP Analysis Tool",
+                  size: 18,
+                  color: "777777",
+                  italics: true,
+                }),
+              ],
+              alignment: "center",
+              spacing: { before: 800 },
+            }),
+          ],
+        },
+      ],
+    });
+  
+    Packer.toBlob(doc).then((blob) => {
+      saveAs(blob, `RFP_Checklist_${companyId}_${new Date().toISOString().slice(0,10)}.docx`);
+    });
+  };
+
   useEffect(() => {
     const fetchAnalysisData = async () => {
       try {
@@ -93,8 +346,12 @@ const Analysis: React.FC = () => {
 
         // Normalize the nested API response
         const normalizedData: AnalysisData = {
-          compliance: response.data.compliance?.compliance || { results: [] },
+          compliance: response.data.compliance?.compliance || { 
+            eligibility: 'not eligible',
+            results: [] 
+          },
           eligibility: response.data.eligibility?.eligibility || { 
+            status: 'not eligible',
             requirements: [], 
             missing_requirements: [] 
           },
@@ -186,36 +443,125 @@ const Analysis: React.FC = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-secondary mb-8">Compliance Check Results</h3>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h3 className="text-2xl font-bold text-secondary">Compliance Check Results</h3>
+        
+              <div
+                className={`flex items-center px-4 py-2 rounded-full text-sm font-medium shadow-sm ${
+                  analysisData.compliance.eligibility === 'eligible'
+                    ? 'bg-green-100 text-green-700'
+                    : analysisData.compliance.eligibility === 'partial'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {analysisData.compliance.eligibility === 'eligible' ? (
+                  <>
+                    <CheckCircleIcon className="h-5 w-5 mr-2" />
+                    Eligible
+                  </>
+                ) : analysisData.compliance.eligibility === 'partial' ? (
+                  <>
+                    <div className="h-5 w-5 mr-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                    Partially Eligible
+                  </>
+                ) : (
+                  <>
+                    <XCircleIcon className="h-5 w-5 mr-2" />
+                    Not Eligible
+                  </>
+                )}
+              </div>
+            </div>
+        
             <div className="space-y-6">
-              {analysisData.compliance.results?.map((result, index) => (
-                <div key={index} className="bg-white p-6 rounded-lg shadow-md">
-                  <div className="flex items-center">
-                    {result.status === 'pass' ? (
-                      <CheckCircleIcon className="h-8 w-8 text-green-500 mr-3" />
-                    ) : result.status === 'pending' ? (
-                      <div className="h-8 w-8 mr-3">
-                        <div className="animate-pulse h-full w-full rounded-full bg-yellow-300"></div>
+              {analysisData.compliance.results
+                ?.filter((result) => result.status !== 'pending')
+                .map((result, index) => (
+                  <div key={index} className="bg-white p-6 rounded-lg shadow-md">
+                    <div className="flex items-center">
+                      {result.status === 'pass' ? (
+                        <CheckCircleIcon className="h-8 w-8 text-green-500 mr-3" />
+                      ) : (
+                        <XCircleIcon className="h-8 w-8 text-red-500 mr-3" />
+                      )}
+                      <div>
+                        <h4
+                          className={`text-lg font-medium ${
+                            result.status === 'fail' ? 'text-red-500' : 'text-green-600'
+                          }`}
+                        >
+                          {result.title}
+                        </h4>
+                        <p className="text-gray-600 mt-1">{result.description}</p>
                       </div>
-                    ) : (
-                      <XCircleIcon className="h-8 w-8 text-red-500 mr-3" />
-                    )}
-                    <div>
-                      <h4 className={`text-lg font-medium ${result.status === 'fail' ? 'text-red-500' : result.status === 'pending' ? 'text-yellow-500' : ''}`}>
-                        {result.title}
-                      </h4>
-                      <p className="text-gray-600 mt-1">{result.description}</p>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
+        
+            {analysisData.compliance.results?.some((r) => r.status === 'pending') && (
+              <div className="space-y-4 mt-10">
+                <h4 className="text-xl font-semibold text-yellow-700 flex items-center">
+                  <span className="mr-2">💡</span> Suggestions for Better Compliance
+                </h4>
+        
+                {analysisData.compliance.results
+                  .filter((result) => result.status === 'pending')
+                  .map((result, index) => (
+                    <div key={index} className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-r-lg shadow-sm">
+                      <div className="flex items-start">
+                        <div className="h-8 w-8 mr-3">
+                          <div className="animate-pulse h-full w-full rounded-full bg-yellow-300"></div>
+                        </div>
+                        <div>
+                          <h4 className="text-md font-medium text-yellow-800">{result.title}</h4>
+                          <p className="text-yellow-700 mt-1">{result.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         );
+        
       case 2:
         return (
           <div className="space-y-6">
-            <h3 className="text-2xl font-bold text-secondary mb-8">Mandatory Eligibility Requirements</h3>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h3 className="text-2xl font-bold text-secondary">
+                Mandatory Eligibility Requirements
+              </h3>
+        
+              <div
+                className={`flex items-center px-4 py-2 rounded-full text-sm font-medium shadow-sm ${
+                  analysisData.eligibility.status === 'eligible'
+                    ? 'bg-green-100 text-green-700'
+                    : analysisData.eligibility.status === 'partial'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {analysisData.eligibility.status === 'eligible' ? (
+                  <>
+                    <CheckCircleIcon className="h-5 w-5 mr-2" />
+                    Eligible
+                  </>
+                ) : analysisData.eligibility.status === 'partial' ? (
+                  <>
+                    <div className="h-5 w-5 mr-2 rounded-full bg-yellow-400 animate-pulse" />
+                    Partially Eligible
+                  </>
+                ) : (
+                  <>
+                    <XCircleIcon className="h-5 w-5 mr-2" />
+                    Not Eligible
+                  </>
+                )}
+              </div>
+            </div>
+        
             {analysisData.eligibility.missing_requirements?.length > 0 && (
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-r-lg mb-8">
                 <div className="flex">
@@ -231,6 +577,7 @@ const Analysis: React.FC = () => {
                 </div>
               </div>
             )}
+        
             <div className="bg-white p-6 rounded-lg shadow-md">
               <ul className="space-y-4">
                 {analysisData.eligibility.requirements?.map((req, index) => (
@@ -252,6 +599,7 @@ const Analysis: React.FC = () => {
             </div>
           </div>
         );
+        
       case 3:
         return (
           <div className="space-y-6">
@@ -306,10 +654,10 @@ const Analysis: React.FC = () => {
                 ))}
               </ul>
               <button
-                onClick={() => setShowSummary(true)}
-                className="mt-8 w-full bg-primary text-white py-3 px-6 rounded-lg hover:bg-primary-dark transition-colors font-medium"
+                onClick={handleDownloadChecklist}
+                className="mt-6 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark"
               >
-                Download Checklist
+                Download Submission Checklist
               </button>
             </div>
           </div>
